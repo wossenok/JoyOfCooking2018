@@ -313,6 +313,9 @@ Some may not have `NDB_No`. We can add a dummy variable and attempt to match to 
 ```{r}
 conforming.tables <- 0
 nonconforming.tables <- c()
+nonconforming.files <- cbind(nonconforming.files, nonconforming.files2)
+nonconforming.files <- cbind(nonconforming.files, nonconforming.files3)
+nonconforming.files <- cbind(nonconforming.files, nonconforming.files4)
 
 for(idx in 1:length(recipe.files)) {
   file.name <- recipe.files[idx]
@@ -353,9 +356,56 @@ for(idx in 1:length(recipe.files)) {
 conforming.tables
 ```
 
+
 ```{r}
 summary(join.frame)
 ```
 
 **To do** 
 Iterate over non-conforming tables, determine which can be fixed programmatically.
+
+```{r}
+conforming.tables <- 0
+nonconforming.tables <- c()
+
+for(idx in 1:length(recipe.files)) {
+  file.name <- recipe.files[idx]
+    if (!(file.name %in% nonconforming.files)) {
+        tbl <- recipe.list[[file.name]]
+    if(length(names(tbl)) == 3) {
+      #We tested against Ingredient,Amount and Measure, so append
+      #an empty NBD_No. We will attempt to look up thos later.
+      #if we sort the data by ingredient, and multiple recipes have the 
+      #same incredients, we may be able to save some searches.
+      tbl$NDB_No <- NA
+    }
+    if(length(names(tbl)) == 4) {
+      # we assume, for now, that the table is missing Year and Recipe,
+      # so parse the file name for this information.
+      ids <- parse.filename(file.name)
+      tbl$Year <- ids$Year
+      tbl$Recipe <- ids$Recipe
+    }
+#todo check for length of 5 or above
+
+    test.tbl <- NULL
+    #put the join in a try block. This will allow us to
+    #process all files without having to stop and fix errors.
+    tryCatch(test.tbl <- rbind(test.frame, tbl[,join.names]),
+             error=function(e) {
+                 print(file.name)
+                 print(length(names(tbl))) #I added
+               #print(head(tbl)) #uncomment
+           })
+    #if we can bind to the empty table, we can merge this table with
+    #the rest
+    if(!is.null(test.tbl)) {
+      join.frame <- rbind(join.frame,tbl[,join.names])
+      conforming.tables <- conforming.tables + 1
+    } else {
+      nonconforming.tables <- c(nonconforming.tables,file.name)
+    }
+  }
+}
+conforming.tables
+```
