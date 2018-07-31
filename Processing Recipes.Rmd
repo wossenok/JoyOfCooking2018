@@ -17,9 +17,8 @@ git clone https://github.com/PeterClaussenSDSU/JoyOfCooking2018.git
 
 The first step to create a recipe database is to process individual recipe files. The files structure was chosed to allow a group of individuals to contribute, and allow individual recipes to be added to the whole, independent of any coordinating files or tables. These files will be stored in:
 ```{r}
-path.to.recipes <- "~/github/JoyOfCooking2018/RecipeTables"
+path.to.recipes <- "/Users/j70195/Documents/JoyOfCooking2018/RecipeTables"
 ```
-
 
 We'll make no assumptions about file types. The expected suffix is `.tab`, but we won't assume that all files conform. If we can guarantee all files conform to a specific format, we might use
 ```{r,eval=FALSE}
@@ -134,6 +133,110 @@ conforming.files
 ```
 
 **To do** Determine how to partially match data columns to read non-conforming files.
+```{r}
+nonconforming.files2 <- c()
+for (recipe in nonconforming.files) {
+    file.name <- paste(path.to.recipes, '/', recipe, sep = '')
+    current <- NULL
+    #read the first line
+    connection <- file(file.name)
+    first.line <- readLines(connection, n = 1)
+    close(connection) #R won't be happy if we don't close the file
+
+    #if the first line can be split by tabs, then use tabs as delimiter
+    first.tokens <- strsplit(first.line, split = ' ')[[1]]
+    #some files will be written with quoted text. 
+    #The various `read` functions will strip the quotes, 
+    #but here we have to do this manually.
+    first.tokens <- gsub('\"', '', first.tokens)
+    first.tokens <- gsub('Unit', 'Measure', first.tokens)
+    if (minimum.headers(first.tokens)) {
+        recipe.list[[recipe]] <- read.table(file.name,
+                                          header = TRUE,
+                                          stringsAsFactors = FALSE)
+        conforming.files <- conforming.files + 1
+    } else {
+        nonconforming.files2 <- c(nonconforming.files2, recipe)
+        print(recipe)
+        print(first.line)
+    }
+}
+
+#read.table( 
+#        text = readLines(file.choose(), warn = FALSE), 
+#        header = TRUE,  
+#        sep = "," 
+#    )
+```
+
+```{r}
+
+nonconforming.files3 <- c()
+for (recipe in nonconforming.files2) {
+    file.name <- paste(path.to.recipes, '/', recipe, sep = '')
+    current <- NULL
+    #read the first line
+    connection <- file(file.name)
+    first.line <- readLines(connection, n = 1)
+    close(connection) #R won't be happy if we don't close the file
+
+    #if the first line can be split by tabs, then use tabs as delimiter
+    first.tokens <- strsplit(first.line, split = ' 	')[[1]]
+    #some files will be written with quoted text. 
+    #The various `read` functions will strip the quotes, 
+    #but here we have to do this manually.
+    first.tokens <- gsub('\"', '', first.tokens)
+    first.tokens <- gsub('Unit', 'Measure', first.tokens)
+    if (minimum.headers(first.tokens)) {
+        recipe.list[[recipe]] <- read.table(file.name,
+                                          header = TRUE,
+                                          stringsAsFactors = FALSE)
+        conforming.files <- conforming.files + 1
+    } else {
+        nonconforming.files3 <- c(nonconforming.files3, recipe)
+        print(recipe)
+        print(first.line)
+    }
+}
+
+```
+
+```{r}
+nonconforming.files4 <- c()
+for (recipe in nonconforming.files3) {
+    file.name <- paste(path.to.recipes, '/', recipe, sep = '')
+    current <- NULL
+    #read the first line
+    connection <- file(file.name)
+    first.line <- readLines(connection, n = 1)
+    close(connection) #R won't be happy if we don't close the file
+
+    #if the first line can be split by tabs, then use tabs as delimiter
+    first.tokens <- strsplit(first.line, split = '\t')[[1]]
+    #some files will be written with quoted text. 
+    #The various `read` functions will strip the quotes, 
+    #but here we have to do this manually.
+    first.tokens <- gsub('\"', '', first.tokens)
+    first.tokens <- gsub('Unit', 'Measure', first.tokens)
+    first.tokens <- gsub('Ingredients', 'Ingredient', first.tokens)
+    first.tokens <- gsub('pudding_1936', 'Ingredient', first.tokens)
+    first.tokens <- gsub('pudding_2006', 'Ingredient', first.tokens)
+    #manually fixed chicken gambo files. Set space between cols and col strngs to tab
+    
+    if (minimum.headers(first.tokens)) {
+
+            recipe.list[[recipe]] <- read.table(file.name,
+                                              header = TRUE,
+                                              stringsAsFactors = FALSE)
+            conforming.files <- conforming.files + 1
+        } else {
+            print('bad')
+            nonconforming.files4 <- c(nonconforming.files4, recipe)
+            print(recipe)
+            print(first.line)
+        }
+}
+```
 
 # Combining Recipes
 
@@ -155,7 +258,7 @@ There are some simple inconsistencies in the column names that prevent merging. 
 ```{r}
 for(idx in 1:length(recipe.files)) {
   file.name <- recipe.files[idx]
-  tbl <- recipe.list[[file.name]]
+    tbl <- recipe.list[[file.name]]
   if('NBD_No' %in% names(tbl)) {
     nbd.idx <- which(names(tbl)=='NBD_No')
     names(tbl)[nbd.idx] <- added.columns[1]
@@ -165,9 +268,43 @@ for(idx in 1:length(recipe.files)) {
 ```
 
 **To do** Partial matches for other mispellings.
+```{r}
+for(idx in 1:length(recipe.files)) {
+  file.name <- recipe.files[idx]
+    tbl <- recipe.list[[file.name]]
+  if('Unit' %in% names(tbl)) {
+    nbd.idx <- which(names(tbl)=='Unit')
+    names(tbl)[nbd.idx] <- expected.columns[2]
+    recipe.list[[file.name]] <- tbl
+  }
+}
+```
 
+```{r}
+for(idx in 1:length(recipe.files)) {
+  file.name <- recipe.files[idx]
+    tbl <- recipe.list[[file.name]]
+    print(names(tbl))
+  if('Recipes' %in% names(tbl)) {
+    nbd.idx <- which(names(tbl)=='Recipes')
+    names(tbl)[nbd.idx] <- added.columns[3]
+    recipe.list[[file.name]] <- tbl
+  }
+    if ('pudding_1936' %in% names(tbl) | 'pudding_2006' %in% names(tbl)) {
+        nbd.idx <- which(names(tbl) == 'Recipes')
+        names(tbl)[nbd.idx] <- added.columns[3]
+        recipe.list[[file.name]] <- tbl
+    }
+    if ('NDB' %in% names(tbl)) {
+        nbd.idx <- which(names(tbl) == 'NDB')
+        names(tbl)[nbd.idx] <- added.columns[1]
+        recipe.list[[file.name]] <- tbl
+    }
+}
+```
 
-Some recipes already have `Year` and `Recipe` columns. If we assume these have correct information, we can join directly. If not, we parse the file name and add `Year` and `Recipe` columns, using the previously defined utility function.
+Some recipes already have `Year` and `Recipe` columns. If we assume these have correct information, we can join directly. 
+If not, we parse the file name and add `Year` and `Recipe` columns, using the previously defined utility function.
 
 
 Some may not have `NDB_No`. We can add a dummy variable and attempt to match to Ingredients later.
